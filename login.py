@@ -41,13 +41,11 @@ class wx_login:
         ua = wx_login.get_ua_random()
         driver = wx_login.get_random_ua_firefox(ua)
         driver.get('https://mp.weixin.qq.com/')
-        time.sleep(2)
         driver.find_element_by_xpath("//input[@name='account']").clear()
         driver.find_element_by_xpath("//input[@name='account']").send_keys(user)
         driver.find_element_by_xpath("//input[@name='password']").clear()
         driver.find_element_by_xpath("//input[@name='password']").send_keys(pwd)
         # 在自动输完密码之后记得点一下记住我
-        time.sleep(5)
         driver.find_element_by_xpath("//a[@class='btn_login']").click()
         # 拿手机扫二维码！
         time.sleep(15)
@@ -66,4 +64,4 @@ if __name__ == '__main__':
     user_list = str(wx_config['user']).split(",")
     pwd = wx_config['pwd']
     for user in user_list:
-        wx_config.get_user_cookies(user=user.strip(' '), pwd=pwd)
+        wx_login.get_user_cookies(user=user.strip(' '), pwd=pwd)

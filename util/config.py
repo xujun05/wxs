@@ -17,4 +17,4 @@ def get_dict_by_section(conf_file, section_name):
     return conf_dict
 
 
-debug_mode = int(get_dict_by_section("xq.conf","debug")['mode']) == 1
+debug_mode = int(get_dict_by_section("wx.conf","debug")['mode']) == 1

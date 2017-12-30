@@ -2,10 +2,12 @@ import MySQLdb
 import util.config as config
 from DBUtils.PooledDB import PooledDB
 import types
+import sys
+sys.path.append('./')
 
 db_dict = config.get_dict_by_section("wx.conf", "db")
-db_pools = PooledDB(MySQLdb, 5, host=db_dict['db_host'], port=int(db_dict['db_port']), \
-                    user=db_dict['db_user'], password=db_dict['db_pwd'], db=db_dict['db_name'], \
+db_pools = PooledDB(MySQLdb, 5, host=db_dict['host'], port=int(db_dict['port']), \
+                    user=db_dict['user'], password=db_dict['pwd'], db=db_dict['name'], \
                     use_unicode=True, charset="utf8")
 
 

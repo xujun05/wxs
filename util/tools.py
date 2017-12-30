@@ -5,7 +5,7 @@ import os
 import uuid
 import db.dbhelper as dbhelper
 
-proxy_dict = config.get_dict_by_section("xq.conf", "proxy")
+proxy_dict = config.get_dict_by_section("wx.conf", "proxy")
 
 
 def getExchange(code):
@@ -49,15 +49,6 @@ def get_uuid():
 
 def get_ua_cookie_list():
     return dbhelper.execute_query("SELECT ua, cookie FROM xueqiu_cookie WHERE ua !=''")
-
-
-def get_crawled_stock_list():
-    crawled_stock_list = []
-    crawled_stock_result = dbhelper.execute_query(
-        "select stock_code from xueqiu_rs_stockcode_threads group by stock_code having count(thread_id) >=910")
-    for item in crawled_stock_result:
-        crawled_stock_list.append(item[0])
-    return crawled_stock_list
 
 
 def get_all_thread_list_base_n(m, base_n):
