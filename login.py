@@ -5,6 +5,7 @@ from pprint import pprint
 from fake_useragent import UserAgent
 from selenium.webdriver.chrome.options import Options
 from util import config as config
+import db.dbhelper as dbhelper
 import sys
 
 ##
@@ -53,9 +54,8 @@ class wx_login:
         cookie_items = driver.get_cookies()
         for cookie_item in cookie_items:
             post[cookie_item['name']] = cookie_item['value']
-        cookie_str = json.dumps(post)
-        with open('cookie.txt', 'w+', encoding='utf-8') as f:
-            f.write(cookie_str)
+        cookie_dict = {'ua': ua, 'cookie': json.dumps(post)}
+        dbhelper.insert_dict(_table="wechat_cookie", _msg_dict=cookie_dict)
         driver.quit()
 
 

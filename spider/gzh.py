@@ -2,34 +2,64 @@ import requests
 import json
 import re
 import random
-import WechatDB
 import time
 import sys
+import db.dbhelper as dbhelper
 
+requests.packages.urllib3.disable_warnings()
 gzh_query_lists = ['aiai', 'huxiu_com']
 
 
 class gzh:
     '''公众号API'''
-    header = {
-        "HOST": "mp.weixin.qq.com",
-        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:58.0.1) Gecko/20170101 Firefox/58.0.1"
-    }
 
-    def __init__(self):
-        self.cookie, self.token = gzh.fetch_token()
+    def __init__(self, _ua, _cookie):
+        self.ua = _ua
+        self.cookie = _cookie
+        self.token = gzh.fetch_token(self.ua, self.cookie)
+        self.nap_limit_time = 5
+        self.freq_limit_time = 60
 
     @staticmethod
-    def fetch_token():
+    def fetch_token(ua, cookie):
+        """
+        获取本用户的标志token
+        :param ua:模拟的UserAgent
+        :param cookie:登录的Cookie
+        :return:
+        """
+        header = {
+            'Host': 'mp.weixin.qq.com',
+            'User-Agent': ua,
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache',
+            'Accept-Language': 'zh-CN,zh;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Referer': "https://mp.weixin.qq.com/cgi-bin/home?t=home/index&token=&lang=zh_CN",
+        }
         url = 'https://mp.weixin.qq.com'
-        with open('cookie.txt', 'r', encoding='utf-8') as f:
-            cookie = f.read()
-        cookies = json.loads(cookie)
-        response = requests.get(url=url, cookies=cookies)
-        return cookies, re.findall(r'token=(\d+)', str(response.url))[0]
+        response = requests.get(url=url, hreaders=header, cookies=cookie)
+        return re.findall(r'token=(\d+)', str(response.url))[0]
 
-    '依据公众号的名称查询相关的公众号id'
     def query_gzh(self, gzh_name):
+        """
+        依据公众号的名称查询相关的公众号id
+
+        :param gzh_name:需要查询的公众号名称
+        :return:本次查询所有的gzh list并写入数据库
+        """
+        header = {
+            'Host': 'mp.weixin.qq.com',
+            'User-Agent': self.ua,
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache',
+            'Accept-Language': 'zh-CN,zh;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Referer': "https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=" + self.token + "&lang=zh_CN",
+        }
         start = 0
         perpage = 5
         while True:
@@ -45,7 +75,7 @@ class gzh:
                 'count': perpage,
             }
             search_url = 'https://mp.weixin.qq.com/cgi-bin/searchbiz?'
-            search_response = requests.get(search_url, cookies=self.cookie, headers=self.header,
+            search_response = requests.get(search_url, cookies=self.cookie, headers=header,
                                            params=query_params).json()
             gzh_base_ret = search_response.get('base_resp').get('ret')
             if gzh_base_ret == 0:
@@ -53,26 +83,41 @@ class gzh:
                 gzh_total = search_response.get('total')
                 start += perpage
                 for gzh_item in gzh_lists:
-                    if WechatDB.DBOperation.test_is_exists(
+                    if dbhelper.test_is_exists(
                             "SELECT ISNULL((SELECT fakeid FROM `gzh` WHERE fakeid = '{}'))".format(gzh_item['fakeid'])):
                         print("{}已经存在".format(gzh_item['nickname']))
                     else:
-                        WechatDB.DBOperation.insert_dict("gzh", gzh_item)
+                        dbhelper.insert_dict("gzh", gzh_item)
                 # 每次处理完List，需要休眠5秒
-                time.sleep(5)
+                time.sleep(self.nap_limit_time)
                 if gzh_total == 0 or start >= gzh_total:
                     print("已处理完公众号{}的查询，共计{}个结果".format(gzh_name, gzh_total))
                     break
             else:
                 print("【警告】查询出现错误，休眠10秒继续尝试。错误代码为：{}".format(search_response.get('base_resp').get('err_msg')))
-                time.sleep(60)
+                time.sleep(self.freq_limit_time)
 
-    '依据公众号ID获取该公众号的所有文章'
     def gzh_mirror_articles_by_gzh(self, fakeid):
+        """
+        依据公众号ID获取该公众号的所有文章
+        :param fakeid:公众号的ID
+        :return:
+        """
+        header = {
+            'Host': 'mp.weixin.qq.com',
+            'User-Agent': self.ua,
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache',
+            'Accept-Language': 'zh-CN,zh;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Referer': "https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=" + self.token + "&lang=zh_CN",
+        }
         start = 0
         perpage = 5
         appmsg_url = 'https://mp.weixin.qq.com/cgi-bin/appmsg?'
-        appmsg_id_max = WechatDB.DBOperation.get_max_appmsgid_by_fackid(fakeid)
+        appmsg_id_max = dbhelper.get_max_appmsgid_by_fakeid(fakeid)
         signal_stop = False
         while True:
             query_id_data = {
@@ -88,7 +133,7 @@ class gzh:
                 'fakeid': fakeid,
                 'type': '9'
             }
-            appmsg_response = requests.get(appmsg_url, cookies=self.cookie, headers=self.header,
+            appmsg_response = requests.get(appmsg_url, cookies=self.cookie, headers=header,
                                            params=query_id_data).json()
             appmsg_ret = appmsg_response.get('base_resp').get('ret')
             if appmsg_ret == 0:
@@ -96,30 +141,34 @@ class gzh:
                 appmsg_list = appmsg_response.get('app_msg_list')
                 start += perpage
                 for item in appmsg_list:
-                    if int(appmsg_id_max)>=int(item['appmsgid']) :
+                    if int(appmsg_id_max) >= int(item['appmsgid']):
                         signal_stop = True
                         break
-                    WechatDB.DBOperation.insert_dict("article", item, add_kvs={"fakeid":fakeid}, drop_keys = ['aid'])
+                    dbhelper.insert_dict("article", item, add_kvs={"fakeid": fakeid}, drop_keys=['aid'])
                     print(item.get('link'))
-                time.sleep(5)
                 if appmsg_total == 0 or start >= appmsg_total or signal_stop:
                     print("已处理完公众号{}的历史文章的镜像工作，共计{}个结果".format(fakeid, appmsg_total))
                     return
+                time.sleep(self.nap_limit_time)
             else:
                 print("【警告】镜像文章出现错误，休眠10秒继续尝试。错误代码为：{}".format(appmsg_response.get('base_resp').get('err_msg')))
-                time.sleep(60)
+                time.sleep(self.freq_limit_time)
 
-
-    '''获取数据库的id'''
     def init_gzh_queue(self, maxid, multi_factor=1000):
+        """
+        依据处理的最大的ID与每次的步进来获取公众号的列表
+        :param maxid:
+        :param multi_factor:
+        :return:
+        """
         sql = "SELECT fakeid FROM `gzh` WHERE id < {} ORDER BY id DESC LIMIT {}".format(maxid, multi_factor)
-        gzh_list = WechatDB.DBOperation.excute_query(sql)
+        gzh_list = dbhelper.excute_query(sql)
         for gzh_item in gzh_list:
             self.gzh_mirror_articles_by_gzh(gzh_item[0])
 
 
 if __name__ == '__main__':
-    WechatDB.DBOperation.init_pool()
-    gzh = gzh()
-    gzh.query_gzh('aiai')
-    gzh.init_gzh_queue(sys.maxsize)
+    # gzh = gzh()
+    # gzh.query_gzh('aiai')
+    # gzh.init_gzh_queue(sys.maxsize)
+    pass

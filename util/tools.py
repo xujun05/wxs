@@ -48,7 +48,7 @@ def get_uuid():
 
 
 def get_ua_cookie_list():
-    return dbhelper.execute_query("SELECT ua, cookie FROM xueqiu_cookie WHERE ua !=''")
+    return dbhelper.execute_query("SELECT ua, cookie FROM wechat_cookie WHERE ua !=''")
 
 
 def get_all_thread_list_base_n(m, base_n):

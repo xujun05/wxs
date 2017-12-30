@@ -1,7 +1,6 @@
 import MySQLdb
 import util.config as config
 from DBUtils.PooledDB import PooledDB
-import types
 import sys
 sys.path.append('./')
 
