@@ -13,4 +13,4 @@ ua_cookie_tuple = tools.get_ua_cookie_list()
 if __name__ == '__main__':
     spider = gzh(ua_cookie_tuple[0][0], ua_cookie_tuple[0][1])
     spider.query_gzh("股票")
-    spider.gzh_mirror_articles_by_gzh("MjM5NDgxNjkyMA==")
+    # spider.gzh_mirror_articles_by_gzh("MjM5NDgxNjkyMA==")

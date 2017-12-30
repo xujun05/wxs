@@ -22,8 +22,8 @@ class gzh():
         self.ua = _ua
         self.cookie = json.loads(_cookie)
         self.token = gzh.fetch_token(self.ua, self.cookie)
-        self.nap_limit_time = 3
-        self.freq_limit_time = 60
+        self.nap_limit_time = 10
+        self.freq_limit_time = 600
 
     @staticmethod
     def fetch_token(ua, cookie):
@@ -152,7 +152,7 @@ class gzh():
                         signal_stop = True
                         break
                     dbhelper.insert_dict("article", item, add_kvs={"fakeid": fakeid}, drop_keys=['aid'])
-                    article_logger.info(item.get('link'))
+                    article_logger.info(item.get('appmsgid'))
                 if appmsg_total == 0 or start >= appmsg_total or signal_stop:
                     article_logger.info("已处理完公众号{}的历史文章的镜像工作，共计{}个结果".format(fakeid, appmsg_total))
                     return
