@@ -162,6 +162,7 @@ class gzh():
                                                                                 appmsg_response.get('base_resp').get(
                                                                                     'err_msg')))
                 time.sleep(self.freq_limit_time)
+                self.freq_limit_time = self.freq_limit_time * 2
 
     def init_gzh_queue(self, maxid, multi_factor=1000):
         """

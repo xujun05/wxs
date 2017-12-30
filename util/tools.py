@@ -73,6 +73,16 @@ def get_all_user_list_base_n(m, base_n):
         "SELECT id FROM `{}` WHERE id % {} = {}".format("xueqiu_user", base_n, m))
 
 
+def get_all_fakeid(m, base_n):
+    """
+    获取除以n之后的余数的thread_id
+    :param m:余数
+    :param base_n:基数
+    :return:
+    """
+    return dbhelper.execute_query(
+        "SELECT DISTINCT fakeid FROM `{}` WHERE id % {} = {}".format("gzh", base_n, m))
+
 if __name__ == '__main__':
     # print(get_ua_cookie_list())
     # print(get_proxy())
