@@ -5,19 +5,24 @@ import random
 import time
 import sys
 import db.dbhelper as dbhelper
+import logging
+from util.LogHandler import LogHandler
 
 requests.packages.urllib3.disable_warnings()
-gzh_query_lists = ['aiai', 'huxiu_com']
+
+gzh_logger = LogHandler('gzh')
+article_logger = LogHandler('article')
+logging.basicConfig()
 
 
-class gzh:
+class gzh():
     '''公众号API'''
 
     def __init__(self, _ua, _cookie):
         self.ua = _ua
-        self.cookie = _cookie
+        self.cookie = json.loads(_cookie)
         self.token = gzh.fetch_token(self.ua, self.cookie)
-        self.nap_limit_time = 5
+        self.nap_limit_time = 3
         self.freq_limit_time = 60
 
     @staticmethod
@@ -39,7 +44,7 @@ class gzh:
             'Referer': "https://mp.weixin.qq.com/cgi-bin/home?t=home/index&token=&lang=zh_CN",
         }
         url = 'https://mp.weixin.qq.com'
-        response = requests.get(url=url, hreaders=header, cookies=cookie)
+        response = requests.get(url=url, headers=header, cookies=cookie)
         return re.findall(r'token=(\d+)', str(response.url))[0]
 
     def query_gzh(self, gzh_name):
@@ -61,7 +66,7 @@ class gzh:
             'Referer': "https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=" + self.token + "&lang=zh_CN",
         }
         start = 0
-        perpage = 5
+        per_page = 10
         while True:
             query_params = {
                 'action': 'search_biz',
@@ -72,7 +77,7 @@ class gzh:
                 'random': random.random(),
                 'query': gzh_name,
                 'begin': start,
-                'count': perpage,
+                'count': per_page,
             }
             search_url = 'https://mp.weixin.qq.com/cgi-bin/searchbiz?'
             search_response = requests.get(search_url, cookies=self.cookie, headers=header,
@@ -81,20 +86,22 @@ class gzh:
             if gzh_base_ret == 0:
                 gzh_lists = search_response.get('list')
                 gzh_total = search_response.get('total')
-                start += perpage
+                start += per_page
                 for gzh_item in gzh_lists:
                     if dbhelper.test_is_exists(
                             "SELECT ISNULL((SELECT fakeid FROM `gzh` WHERE fakeid = '{}'))".format(gzh_item['fakeid'])):
-                        print("{}已经存在".format(gzh_item['nickname']))
+                        gzh_logger.info("{}已经存在".format(gzh_item['nickname']))
                     else:
                         dbhelper.insert_dict("gzh", gzh_item)
                 # 每次处理完List，需要休眠5秒
                 time.sleep(self.nap_limit_time)
                 if gzh_total == 0 or start >= gzh_total:
-                    print("已处理完公众号{}的查询，共计{}个结果".format(gzh_name, gzh_total))
+                    gzh_logger.info("已处理完公众号{}的查询，共计{}个结果".format(gzh_name, gzh_total))
                     break
             else:
-                print("【警告】查询出现错误，休眠10秒继续尝试。错误代码为：{}".format(search_response.get('base_resp').get('err_msg')))
+                gzh_logger.warning("【警告】查询出现错误，休眠{}秒继续尝试。错误代码为：{}".format(self.freq_limit_time,
+                                                                          search_response.get('base_resp').get(
+                                                                              'err_msg')))
                 time.sleep(self.freq_limit_time)
 
     def gzh_mirror_articles_by_gzh(self, fakeid):
@@ -115,7 +122,7 @@ class gzh:
             'Referer': "https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=" + self.token + "&lang=zh_CN",
         }
         start = 0
-        perpage = 5
+        per_page = 5
         appmsg_url = 'https://mp.weixin.qq.com/cgi-bin/appmsg?'
         appmsg_id_max = dbhelper.get_max_appmsgid_by_fakeid(fakeid)
         signal_stop = False
@@ -128,7 +135,7 @@ class gzh:
                 'random': random.random(),
                 'action': 'list_ex',
                 'begin': start,
-                'count': perpage,
+                'count': per_page,
                 'query': '',
                 'fakeid': fakeid,
                 'type': '9'
@@ -139,19 +146,21 @@ class gzh:
             if appmsg_ret == 0:
                 appmsg_total = appmsg_response.get('app_msg_cnt')
                 appmsg_list = appmsg_response.get('app_msg_list')
-                start += perpage
+                start += per_page
                 for item in appmsg_list:
                     if int(appmsg_id_max) >= int(item['appmsgid']):
                         signal_stop = True
                         break
                     dbhelper.insert_dict("article", item, add_kvs={"fakeid": fakeid}, drop_keys=['aid'])
-                    print(item.get('link'))
+                    article_logger.info(item.get('link'))
                 if appmsg_total == 0 or start >= appmsg_total or signal_stop:
-                    print("已处理完公众号{}的历史文章的镜像工作，共计{}个结果".format(fakeid, appmsg_total))
+                    article_logger.info("已处理完公众号{}的历史文章的镜像工作，共计{}个结果".format(fakeid, appmsg_total))
                     return
                 time.sleep(self.nap_limit_time)
             else:
-                print("【警告】镜像文章出现错误，休眠10秒继续尝试。错误代码为：{}".format(appmsg_response.get('base_resp').get('err_msg')))
+                article_logger.warning("【警告】镜像文章出现错误，休眠{}秒继续尝试。错误代码为：{}".format(self.freq_limit_time,
+                                                                                appmsg_response.get('base_resp').get(
+                                                                                    'err_msg')))
                 time.sleep(self.freq_limit_time)
 
     def init_gzh_queue(self, maxid, multi_factor=1000):
@@ -162,7 +171,7 @@ class gzh:
         :return:
         """
         sql = "SELECT fakeid FROM `gzh` WHERE id < {} ORDER BY id DESC LIMIT {}".format(maxid, multi_factor)
-        gzh_list = dbhelper.excute_query(sql)
+        gzh_list = dbhelper.execute_query(sql)
         for gzh_item in gzh_list:
             self.gzh_mirror_articles_by_gzh(gzh_item[0])
 
