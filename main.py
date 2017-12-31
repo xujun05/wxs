@@ -28,8 +28,8 @@ def get_gzh_func(worker_no, gzh_query, proxy=''):
 
 def gzh_spider():
     string = 'abcdefghijklmnopqrstuvwxyz0123456789'
-    query_list = list(string)
-    query_list.extend(["股票", "stock", "证券", "量化"])
+    query_list = ["stock", "证券", "量化", "股票"]
+    query_list.extend(list(string))
     wm = WorkManager(int(thread_dict['num']))
     for index, query in enumerate(query_list):
         wm.add_job(index, get_gzh_func, index % int(thread_dict['num']), query)
@@ -51,7 +51,7 @@ def get_article_func(worker_no, fakeid, proxy=''):
 
 def article_spider():
     base_n = 100
-    for i in range (0, base_n):
+    for i in range(0, base_n):
         fakeid_list = tools.get_all_fakeid(i, base_n)
         wm = WorkManager(int(thread_dict['num']))
         for index, fakeid in enumerate(fakeid_list):
@@ -74,8 +74,9 @@ def run():
     for p in p_list:
         p.join()
 
+
 if __name__ == '__main__':
-    #spider = gzh(ua_cookie_tuple[0][0], ua_cookie_tuple[0][1])
-    #spider.query_gzh("股票")
+    # spider = gzh(ua_cookie_tuple[0][0], ua_cookie_tuple[0][1])
+    # spider.query_gzh("股票")
     # spider.gzh_mirror_articles_by_gzh("MjM5NDgxNjkyMA==")
     run()
